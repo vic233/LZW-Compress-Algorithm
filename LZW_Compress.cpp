@@ -1,4 +1,4 @@
-﻿#include <iostream>
+#include <iostream>
 #include <string>
 #include <map>
 #include <vector>
@@ -8,14 +8,15 @@
 
 using namespace std;
 
-map <string, int> dict;  //编码词典，为了查找方便，将码字和缀-符串的位置对调
-map <int, string> reDict;  //解码词典
-vector<int> codeStream;  //码字流，用来存储编码生成的码字
+map <string, long> dict;  //编码词典，为了查找方便，将码字和缀-符串的位置对调
+map <long, string> reDict;  //解码词典
+vector<unsigned int> codeStream;  //码字流，用来存储编码生成的码字
 vector<char> charStream;  //字符流，存储带解码待解码数据
 vector<string> charStream_deCompress;  //解码字符流，存储解码时生成的字符
-vector<int> codeToBinDigits;  //用来记录每个码字序列的长度是多少
+vector<int> codeToBinDigits;  //用来记录码字每次存储的二进制位数是多少
+vector<bool> codeIsTruncated;  //码字是否被截断
 
-void LZW_initDict(int init_num)
+void LZW_initDict(long init_num)
 {
 	cout << "正在初始化词典..." << endl;
 	string s = " ";
@@ -27,14 +28,14 @@ void LZW_initDict(int init_num)
 	cout << "词典初始化完成！\n" << endl;
 }
 
-void LZW_compress(vector<char> charStream, int init_num)
+void LZW_compress(vector<char> charStream, long init_num)
 {
 	cout << "正在编码..." << endl;
 	int code;  //词典中的码字
 	string currentPrefix;  //初始时当前前缀P为空
 	string currentChar;  //当前字符C
 	string str;  //缀-符串S
-	map<string, int>::iterator iter_d;
+	map<string, long>::iterator iter_d;
 	vector<char>::iterator iter_c;
 
 	for (iter_c = charStream.begin(); iter_c != charStream.end(); iter_c++)
@@ -56,6 +57,11 @@ void LZW_compress(vector<char> charStream, int init_num)
 			//cout << "code = " << init_num << "  str = " << str << endl;
 			dict.insert(pair<string, int>(str, init_num));  //把缀-符串S添加到词典
 			init_num++;  //码值加1
+			if (init_num > 4294967295)
+			{
+				cout << "词典条目超过限制" << endl;
+				exit(EXIT_FAILURE);
+			}
 			currentPrefix = currentChar;  //令P:=C
 		}
 	}
@@ -74,12 +80,12 @@ void LZW_compress(vector<char> charStream, int init_num)
 	//cout << "当前vector分配的大小: " << codeStream.capacity() << "   " << "当前使用数据的大小: " << codeStream.size() << endl << endl;
 }
 
-void LZW_deCompress(int init_num)
+void LZW_deCompress(long init_num)
 {
 	//map<int, string> reDict_2;
 	cout << "正在解码..." << endl;
 	int i = 0;
-	int code = init_num;  //词典中的码字
+	long code = init_num;  //词典中的码字
 	string currentPrefix;  //初始时当前前缀P为空
 	char currentChar;  //当前字符C
 	int currentCodeWord;  //当前码字cW
@@ -93,7 +99,7 @@ void LZW_deCompress(int init_num)
 	currentStr = reDict[currentCodeWord];  //保存cW指向的缀-符串S为当前缀-符串cS
 	charStream_deCompress.push_back(currentStr);  //输出当前缀-符串cS到字符流
 
-	vector<int>::iterator iter_c;
+	vector<unsigned int>::iterator iter_c;
 	/*
 	int m = 0;
 	for (iter_c = codeStream.begin(); iter_c != codeStream.end(); iter_c++)
@@ -176,37 +182,40 @@ void LZW_deCompress(int init_num)
 	cout << "解码完成！" << endl;
 }
 
-int intToBinDigits(int num)
+int numOfBytes(unsigned int num, string &binary)  //获得码字序列的二进制位数
 {
-	int temp;
+	unsigned int temp;
 	int codeToBinDigits;  //最大的码字序列转为二进制后的位数
 	temp = num;
-	list<int> L;
+	if (temp == 0)
+	{
+		binary = "0";
+	}
 	while (temp != 0)
 	{
-		L.push_front(temp % 2);
+		binary = to_string(temp % 2) + binary;
 		temp = temp >> 1;
 	}
-	codeToBinDigits = L.size();
+	codeToBinDigits = binary.size();
+	return codeToBinDigits;
 	/*
-	for (list<int>::iterator iter = L.begin(); iter != L.end(); iter++)
+	for (vector<string>::iterator iter = L.begin(); iter != L.end(); iter++)
 		cout << *iter;
 	cout << endl;
-	cout << "maxCodeNum: " << maxCodeNum << " len: " << len << endl;
 	*/
-	if (codeToBinDigits % 8 != 0)
+	/* if (codeToBinDigits % 8 != 0)
 	{
 		return (codeToBinDigits / 8 + 1);
 	}
 	else
 	{
 		return codeToBinDigits / 8;
-	}
+	} */
 }
 
 void fileWR(string filename)
 {
-	int init_num = 128;  //词典初始化后的大小
+	long init_num = 128;  //词典初始化后的大小
 	char charStream_temp;
 	ifstream inFile;
 	//读取存储字符流的文件以便开始编码
@@ -236,21 +245,18 @@ void fileWR(string filename)
 	LZW_initDict(init_num);
 	LZW_compress(charStream, init_num);
 
-	/*
-	int m = 0;
-	vector<int>::iterator iter;
+	/* int m = 0;
+	vector<unsigned int>::iterator iter;
 	cout << "编码后的结果为：" << endl;
 	for (iter = codeStream.begin(); iter != codeStream.end(); iter++)
 	{
 		cout << m << ":" << * iter << " ";
 		m++;
 	}
-	cout << endl << endl;
-	*/
+	cout << endl << endl; */
 	
 	ofstream outFile;
 	string compressResultFilename = filename + ".lzwc";  //存储编码结果的文件名加后缀.lzwc
-	int C_binary = 1;
 	//将编码结果写入到文件中
 	outFile.open(compressResultFilename.c_str(), ios::binary);  //以二进制模式打开文件
 	if (!outFile.is_open())
@@ -260,24 +266,111 @@ void fileWR(string filename)
 	}
 	else
 	{
-		vector<int>::iterator iter_c;
+		vector<unsigned int>::iterator iter_c;
 		int i = 0;
+		int len = 32;  //一个int变量的存储空间中未使用的位数
+		int len_2;  //超过上个存储空间的位数
+		int binDigits;  //码字所占二进制位数
+		string binary;  //码字的二进制
+		string binTemp = "";  //紧凑存储时拼接的二进制
+		unsigned C_binary = 0;
 		for (iter_c = codeStream.begin(); iter_c != codeStream.end(); iter_c++)
 		{
 			C_binary = *iter_c;  //将码字流中的码字逐个处理
 			//cout << hex << C_binary << " ";
-			codeToBinDigits.push_back(intToBinDigits(C_binary));  //将求得的每个码字的字节数存入数组
-			//cout << "code: " << *iter_c << " intToBinDigits(" << C_binary << "): " << intToBinDigits(C_binary) << endl;
-			//cout << "code: " << *iter_c << " codeToBinDigits[" << i << "]: " << codeToBinDigits[i] << endl;
-			outFile.write(reinterpret_cast<char*>(&C_binary), codeToBinDigits[i]);  //以二进制形式将码字逐个写入到文件中
-			i++;
+			binary = "";
+			binDigits = numOfBytes(C_binary, binary);
+			//cout << "code: " << *iter_c << endl;
+			if (len - binDigits > 0)  //码字的二进制位数小于一个int变量的存储空间中未使用的位数
+			{
+				len -= binDigits;  //还剩余的位数
+				binTemp += binary;  //紧凑存储时拼接的二进制
+				//cout << " 1 " << endl;
+				//cout << "binDigits = " << binDigits << " len = " << len << endl;
+				//cout << "binary = " << binary << " binTemp = " << binTemp << endl << endl;
+				codeToBinDigits.push_back(binDigits);  //将该码字的二进制位数存入数组
+				codeIsTruncated.push_back(false);
+				i++;
+			}
+			else if (len - binDigits == 0)  //码字的二进制位数等于于一个int变量的存储空间中未使用的位数
+			{
+				len -= binDigits;  //还剩余的位数，此时为0
+				binTemp += binary;  //紧凑存储时拼接的二进制
+				//cout << " 2 " << endl;
+				//cout << "binDigits = " << binDigits << " len = " << len << endl;
+				//cout << "binary = " << binary << " binTemp = " << binTemp << endl;
+				try
+				{
+					C_binary = stol(binTemp, 0, 2);  //将拼接的32位二进制转为十进制
+				}
+				catch (std::invalid_argument&)
+				{
+					cout << "11 Invalid_argument" << endl;
+					exit(EXIT_FAILURE);
+				}
+				//cout << "C_binary = " << C_binary << endl << endl;
+				outFile.write(reinterpret_cast<char*>(&C_binary), sizeof(C_binary));  //以二进制形式将码字逐个写入到文件中
+				codeToBinDigits.push_back(binDigits);  //将该码字的二进制位数存入数组
+				codeIsTruncated.push_back(false);
+				i++;
+				len = 32;  //将未使用的位数还原
+				binTemp.clear();  //清空临时变量
+			}
+			else  //码字的二进制位数大于一个int变量的存储空间中未使用的位数
+			{
+				binTemp += binary.substr(0, len);  //从高位开始，将未超过的二进制部分拼接
+				//cout << " 3 " << endl;
+				//cout << "binDigits = " << binDigits << " len = " << len << endl;
+				//cout << "binary = " << binary << " binTemp = " << binTemp << endl;
+				try
+				{
+					C_binary = stol(binTemp, 0, 2);  //将拼接的32位二进制转为十进制
+				}
+				catch (std::invalid_argument&)
+				{
+					cout << "22 Invalid_argument" << endl;
+					exit(EXIT_FAILURE);
+				}
+				//cout << "C_binary = " << C_binary << endl;
+				outFile.write(reinterpret_cast<char*>(&C_binary), sizeof(C_binary));  //以二进制形式将码字逐个写入到文件中
+				codeToBinDigits.push_back(len);  //将该码字的未超出的二进制位数存入数组
+				codeIsTruncated.push_back(true);
+				i++;
+				binary.erase(0, len);  //从高位开始，将未超过的二进制部分删除
+				len_2 = binDigits - len;  //超过上个存储空间的位数
+				binTemp = binary;  //剩余的二进制位数不可能超过32，所以直接存入临时变量
+				//cout << "after erase,binary = " << binary << " binTemp = " << binTemp << endl;
+				codeToBinDigits.push_back(len_2);  //将该码字还未处理的二进制位数存入数组
+				codeIsTruncated.push_back(false);
+				i++;
+				len = 32 - len_2;  //还剩余的位数
+				//cout << "len_2 = " << len_2 << " len = " << len << endl << endl;
+			}
 		}
+		if (len != 32)  //len!=32说明不是在刚凑满一个存储空间时结束，此时还有数据没有写入文件
+		{
+			binTemp.append(len, '0');  //在临时变量后加0，使其位数增至32位
+			//cout << "binTemp append 0 = " << binTemp << endl;
+			try
+			{
+				C_binary = stol(binTemp, 0, 2);  //将拼接的32位二进制转为十进制
+			}
+			catch (std::invalid_argument&)
+			{
+				cout << "33 Invalid_argument" << endl;
+				exit(EXIT_FAILURE);
+			}
+			//cout << "C_binary = " << C_binary << endl;
+			outFile.write(reinterpret_cast<char*>(&C_binary), sizeof(C_binary));  //以二进制形式将码字逐个写入到文件中
+			//codeToBinDigits[i - 1] += len;  //最后一个数据存储时占满了整个存储空间
+			//cout << "last data's digits = " << codeToBinDigits[i - 1] << endl << endl;
+		}
+		//cout << "codeToBinDigits's length = " << codeToBinDigits.size() << " " << i -1 << endl << endl;
 		cout << "编码结果写入“" << compressResultFilename << "”成功" << endl;
 	}
 	outFile.close();
 	outFile.clear();
 
-	int C_binary_2 = 0;
 	codeStream.clear();
 	//读取编码结果文件以便解码
 	inFile.open(compressResultFilename.c_str(), ios::binary);
@@ -289,16 +382,117 @@ void fileWR(string filename)
 	else
 	{
 		int i = 0;
-		int len;
+		int len;  //码字每次存储的二进制位数
+		int len_2;  //在二进制首部应添加的0的位数
+		string binary = "";  //读取出的数据的二进制
+		string binTemp = "";  //紧凑存储时拼接的二进制
+		int binDigits;  //数据所占二进制位数
+		unsigned int C_binary = 0;
 		vector<int>::iterator iter;
+		inFile.read(reinterpret_cast<char*>(&C_binary), sizeof(C_binary));  //以二进制读取待解码码字数据
+		binDigits = numOfBytes(C_binary, binary);  //将读取到的数据转为二进制
+		//cout << "读取的数据 = " << C_binary << " 转为二进制后 = " << binary << endl;
+		if (binDigits < 32)  //二进制未满32位，说明前面有0被省略
+		{
+			len_2 = 32 - binDigits;
+			binary.insert(0, len_2, '0');  //加0
+		}
 		for (iter = codeToBinDigits.begin(); iter != codeToBinDigits.end(); iter++)
 		{
 			len = *iter;
-			C_binary_2 = 0;
-			inFile.read(reinterpret_cast<char*>(&C_binary_2), len);  //以二进制逐个读取带解码码字
-			codeStream.push_back(C_binary_2);
+			//cout << "len = " << len << endl;
+			if (codeIsTruncated[i] == false && binary != "")  //能正常处理一个存储空间的数据
+			{
+				//cout << " 1 " << endl;
+				binTemp = binary.substr(0, len);
+				//cout << "binTemp = " << binTemp << " binary = " << binary << endl;
+				binary.erase(0, len);  //删除已处理数据
+				//cout << "after erase,binary = " << binary << endl;
+				try
+				{
+					C_binary = stol(binTemp, 0, 2);  //将拼接的32位二进制转为十进制
+				}
+				catch (std::invalid_argument&)
+				{
+					cout << "44 Invalid_argument" << endl;
+					exit(EXIT_FAILURE);
+				}
+				codeStream.push_back(C_binary);
+				//cout << "C_binary = " << C_binary << endl << endl;
+				i++;
+			}
+			else if (codeIsTruncated[i] == false && binary == "")  //处理完了一个存储空间的数据且没有截断
+			{
+				//cout << " 2 " << endl;
+				C_binary = 0;
+				inFile.read(reinterpret_cast<char*>(&C_binary), sizeof(C_binary));  //读取新的待解码码字数据
+				binDigits = numOfBytes(C_binary, binary);  //将读取到的数据转为二进制
+				if (binDigits < 32)  //二进制未满32位，说明前面有0被省略
+				{
+					len_2 = 32 - binDigits;
+					binary.insert(0, len_2, '0');  //加0
+				}
+				//cout << "读取的数据 = " << C_binary << " 转为二进制后 = " << binary << endl;
+				binTemp = binary.substr(0, len);
+				//cout << "binTemp = " << binTemp << " binary = " << binary << endl;
+				binary.erase(0, len);  //删除已处理数据
+				//cout << "after erase,binary = " << binary << endl;
+				try
+				{
+					C_binary = stol(binTemp, 0, 2);  //将拼接的32位二进制转为十进制
+				}
+				catch (std::invalid_argument&)
+				{
+					cout << "44 Invalid_argument" << endl;
+					exit(EXIT_FAILURE);
+				}
+				codeStream.push_back(C_binary);
+				//cout << "C_binary = " << C_binary << endl << endl;
+				i++;
+			}
+			else if (codeIsTruncated[i] == true && binary != "")  //处理到了截断的数据的上半部分
+			{
+				//cout << " 3 " << endl;
+				binTemp = binary.substr(0, len);  //获取被截断数据的上半部分
+				//cout << "binTemp = " << binTemp << " binary = " << binary << endl;
+				binary.erase(0, len);  //删除已处理数据
+				//cout << "after erase,binary = " << binary << endl;
+				C_binary = 0;
+				inFile.read(reinterpret_cast<char*>(&C_binary), sizeof(C_binary));  //读取新的待解码码字数据
+				binDigits = numOfBytes(C_binary, binary);  //将读取到的数据转为二进制
+				if (binDigits < 32)  //二进制未满32位，说明前面有0被省略
+				{
+					len_2 = 32 - binDigits;
+					binary.insert(0, len_2, '0');  //加0
+				}
+				//cout << "读取的数据 = " << C_binary << " 转为二进制后 = " << binary << endl;
+				i++;
+				iter++;
+				len = *iter;
+				//cout << "len = " << len << endl;
+				binTemp += binary.substr(0, len);  //获取被截断数据的下半部分
+				//cout << "binTemp = " << binTemp << " binary = " << binary << endl;
+				binary.erase(0, len);  //删除已处理数据
+				//cout << "after erase,binary = " << binary << endl;
+				try
+				{
+					C_binary = stol(binTemp, 0, 2);  //将拼接的32位二进制转为十进制
+				}
+				catch (std::invalid_argument&)
+				{
+					cout << "55 Invalid_argument" << endl;
+					exit(EXIT_FAILURE);
+				}
+				codeStream.push_back(C_binary);
+				//cout << "C_binary = " << C_binary << endl << endl;
+				i++;
+			}
+			else
+			{
+				cout << "读取码字数据错误" << endl;
+				exit(EXIT_FAILURE);
+			}
 			//cout << hex << codeStream[i] << " " << i << ": " << inFile.gcount() << " " << len << endl;
-			i++;
 		}
 		cout << "\n读取待解码文件成功...\n" << endl;
 	}
@@ -311,7 +505,7 @@ void fileWR(string filename)
 	string C_wordTemp;
 	int i;
 	int j;
-	string deCompressResultFilename = filename + ".lzwd";  //存储解码结果的文件名加后缀.lzwcd
+	string deCompressResultFilename = "lzwd_" + filename;  //存储解码结果的文件名加后缀.lzwcd
 	//写入解码结果到文件中
 	outFile.open(deCompressResultFilename.c_str(), ios:: binary);
 	if (!outFile.is_open())
@@ -354,7 +548,7 @@ size_t getFileSize(const char* fileName)
 
 int main()
 {
-	int init_num = 128;  //词典初始化后的大小
+	long init_num = 128;  //词典初始化后的大小
 	char option;
 	string charStream_temp;  //要编码的字符流
 	string filename;
@@ -379,7 +573,7 @@ int main()
 		LZW_initDict(init_num);
 
 		LZW_compress(charStream, init_num);
-		vector<int>::iterator iter;
+		vector<unsigned int>::iterator iter;
 		cout << "编码后的结果为：" << endl;
 		for (iter = codeStream.begin(); iter != codeStream.end(); iter++)
 		{
