@@ -8,15 +8,15 @@
 
 using namespace std;
 
-map <string, long> dict;  //编码词典，为了查找方便，将码字和缀-符串的位置对调
-map <long, string> reDict;  //解码词典
+map <string, unsigned int> dict;  //编码词典，为了查找方便，将码字和缀-符串的位置对调
+map <unsigned int, string> reDict;  //解码词典
 vector<unsigned int> codeStream;  //码字流，用来存储编码生成的码字
 vector<char> charStream;  //字符流，存储带解码待解码数据
 vector<string> charStream_deCompress;  //解码字符流，存储解码时生成的字符
 vector<int> codeToBinDigits;  //用来记录码字每次存储的二进制位数是多少
 vector<bool> codeIsTruncated;  //码字是否被截断
 
-void LZW_initDict(long init_num)
+void LZW_initDict(unsigned int init_num)
 {
 	cout << "正在初始化词典..." << endl;
 	string s = " ";
@@ -28,14 +28,14 @@ void LZW_initDict(long init_num)
 	cout << "词典初始化完成！\n" << endl;
 }
 
-void LZW_compress(vector<char> charStream, long init_num)
+void LZW_compress(vector<char> charStream, unsigned int init_num)
 {
 	cout << "正在编码..." << endl;
-	int code;  //词典中的码字
+	unsigned int code;  //词典中的码字
 	string currentPrefix;  //初始时当前前缀P为空
 	string currentChar;  //当前字符C
 	string str;  //缀-符串S
-	map<string, long>::iterator iter_d;
+	map<string, unsigned int>::iterator iter_d;
 	vector<char>::iterator iter_c;
 
 	for (iter_c = charStream.begin(); iter_c != charStream.end(); iter_c++)
@@ -82,18 +82,18 @@ void LZW_compress(vector<char> charStream, long init_num)
 
 void LZW_deCompress(long init_num)
 {
-	//map<int, string> reDict_2;
+	//mapunsigned int, string> reDict_2;
 	cout << "正在解码..." << endl;
-	int i = 0;
+	unsigned int i = 0;
 	long code = init_num;  //词典中的码字
 	string currentPrefix;  //初始时当前前缀P为空
 	char currentChar;  //当前字符C
-	int currentCodeWord;  //当前码字cW
-	int previousCodeWord;  //先前码字cW
+	unsigned int currentCodeWord;  //当前码字cW
+	unsigned int previousCodeWord;  //先前码字cW
 	string str;  //缀-符串S
 	string currentStr;  //当前缀-符串cS
 	string previousStr;  //先前缀-符串pS
-	int codeStream_len = codeStream.size();
+	unsigned int codeStream_len = codeStream.size();
 
 	currentCodeWord = codeStream[0];  //当前码字cW:=码字流中的第一个码字
 	currentStr = reDict[currentCodeWord];  //保存cW指向的缀-符串S为当前缀-符串cS
@@ -101,7 +101,7 @@ void LZW_deCompress(long init_num)
 
 	vector<unsigned int>::iterator iter_c;
 	/*
-	int m = 0;
+	unsigned int m = 0;
 	for (iter_c = codeStream.begin(); iter_c != codeStream.end(); iter_c++)
 	{
 		cout << m << ":" << *iter_c << " ";
@@ -138,7 +138,7 @@ void LZW_deCompress(long init_num)
 			//cout << "currentChar = " << currentChar << endl;
 			str = currentPrefix + currentChar;  //缀-符串S=P+C
 			//cout << " code = " << code << "  str = " << str << endl;
-			//reDict.insert(pair<int, string>(code, str));  //把缀-符串S添加到词典
+			//reDict.insert(pair<unsigned int, string>(code, str));  //把缀-符串S添加到词典
 			reDict[code] = str;  //把缀-符串S添加到词典
 			/*
 			if (code == 273)
@@ -165,7 +165,7 @@ void LZW_deCompress(long init_num)
 			str = currentPrefix + currentChar;  //缀-符串S=P+C
 			charStream_deCompress.push_back(str);  //输出当缀-符串S到字符流
 			//cout << " :code = " << code << "  str = " << str << endl;
-			//reDict.insert(pair<int, string>(code, str));  //把缀-符串S添加到词典，此处有BUG，无法正常插入
+			//reDict.insert(pair<unsigned int, string>(code, str));  //把缀-符串S添加到词典，此处有BUG，无法正常插入
 			reDict[code] = str;  //把缀-符串S添加到词典
 			//cout << ":code = " << code << endl << endl;
 			code++;  //码值加1
@@ -173,7 +173,7 @@ void LZW_deCompress(long init_num)
 		i++;
 	}
 	/*
-	map<int, string>::iterator iter_r;
+	map<unsigned int, string>::iterator iter_r;
 	for (iter_r = reDict.begin(); iter_r != reDict.end(); iter_r++)
 	{
 		cout << iter_r->first << " " << iter_r->second << endl;
@@ -227,12 +227,9 @@ void fileWR(string filename)
 	}
 	else
 	{
-		//int i = 0;
 		while (inFile.read(&charStream_temp, sizeof(charStream_temp)))  //输出字符流到变量
 		{
 			charStream.push_back(charStream_temp);
-			//cout << charStream[i] << endl;
-			//i++;
 		}
 		cout << "\n读取待编码文件成功...\n" << endl;
 	}
@@ -245,7 +242,7 @@ void fileWR(string filename)
 	LZW_initDict(init_num);
 	LZW_compress(charStream, init_num);
 
-	/* int m = 0;
+	/* unsigned int m = 0;
 	vector<unsigned int>::iterator iter;
 	cout << "编码后的结果为：" << endl;
 	for (iter = codeStream.begin(); iter != codeStream.end(); iter++)
@@ -267,7 +264,7 @@ void fileWR(string filename)
 	else
 	{
 		vector<unsigned int>::iterator iter_c;
-		int i = 0;
+		unsigned int i = 0;
 		int len = 32;  //一个int变量的存储空间中未使用的位数
 		int len_2;  //超过上个存储空间的位数
 		int binDigits;  //码字所占二进制位数
@@ -381,7 +378,7 @@ void fileWR(string filename)
 	}
 	else
 	{
-		int i = 0;
+		unsigned int i = 0;
 		int len;  //码字每次存储的二进制位数
 		int len_2;  //在二进制首部应添加的0的位数
 		string binary = "";  //读取出的数据的二进制
@@ -503,7 +500,7 @@ void fileWR(string filename)
 
 	char C_word;
 	string C_wordTemp;
-	int i;
+	unsigned int i;
 	int j;
 	string deCompressResultFilename = "lzwd_" + filename;  //存储解码结果的文件名加后缀.lzwcd
 	//写入解码结果到文件中
@@ -548,7 +545,7 @@ size_t getFileSize(const char* fileName)
 
 int main()
 {
-	long init_num = 128;  //词典初始化后的大小
+	unsigned int init_num = 128;  //词典初始化后的大小
 	char option;
 	string charStream_temp;  //要编码的字符流
 	string filename;
